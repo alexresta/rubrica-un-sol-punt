@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Avaluació per rúbrica d'un sol punt</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--card:#fff;--border:#e0e0e3;--accent:#3b6fd6;--accentfg:#fff;--danger:#c0392b;--muted:#6b6b70;--radius:10px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16171b;--fg:#ececec;--card:#212226;--border:#34353b;--accent:#5b8def;--accentfg:#0b0b0d;--danger:#e57373;--muted:#9a9aa2}}
+:root[data-theme="dark"]{--bg:#16171b;--fg:#ececec;--card:#212226;--border:#34353b;--accent:#5b8def;--accentfg:#0b0b0d;--danger:#e57373;--muted:#9a9aa2}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding-top:env(safe-area-inset-top,0);padding-bottom:calc(24px + env(safe-area-inset-bottom,0));font-size:15px}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0 4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.tab{padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:600}
+.tab.active{color:var(--accent);border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+details.card{padding:0}
+details.card>summary{padding:12px 14px;cursor:pointer;font-weight:600;list-style:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card .inner{padding:0 14px 14px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input[type=text],input[type=number],textarea{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-family:inherit;font-size:14px}
+textarea{resize:vertical;min-height:44px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.row2{grid-template-columns:1fr}}
+.crit{border-top:1px solid var(--border);padding-top:10px;margin-top:10px}
+.crit .name{font-weight:600;font-size:13.5px;margin-bottom:4px}
+.crit-label-input{font-weight:600;margin-bottom:6px}
+button{border:none;border-radius:7px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:var(--accentfg)}
+.btn-ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--border)}
+.btn-sm{padding:5px 9px;font-size:12.5px}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600}
+.grupTitle{font-weight:700;margin:16px 0 6px;color:var(--accent)}
+.rowbtns{display:flex;gap:6px}
+.empty{color:var(--muted);font-size:13.5px;padding:8px 0}
+.tablewrap{overflow-x:auto}
+pre#reportBox{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:13px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;max-height:50vh;overflow-y:auto}
+#printArea{display:none}
+@media print{
+  body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{display:block !important;position:absolute;left:0;top:0;width:100%;margin:0;padding:0;column-count:2;column-gap:14mm}
+  .printReport{break-inside:avoid;-webkit-column-break-inside:avoid;border:1px dashed #999;padding:8px 10px;margin:0 0 10px;font-family:ui-monospace,Menlo,monospace;font-size:9pt;line-height:1.35;color:#000;background:#fff}
+  .printHead{font-weight:700;font-size:9.5pt;margin-bottom:3px;border-bottom:1px solid #333;padding-bottom:2px}
+  .printNota{font-size:8.5pt;margin-bottom:3px}
+  .printCritTitle{font-weight:600;margin-top:5px}
+  .printPos,.printMill,.printNone{padding-left:10px;margin:1px 0;white-space:pre-wrap}
+  .printNone{color:#555}
+  @page{margin:10mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Avaluació per rúbrica</h1>
+<div class="sub">Defineix els punts que vulguis (mínim 1). Les dades es desen només en aquest navegador/dispositiu.</div>
+
+<div class="card">
+  <label>Títol de l'avaluació (opcional, p.ex. "Punt de llibre")</label>
+  <input type="text" id="fTitol" placeholder="Punt de llibre">
+</div>
+
+<div class="card">
+  <label style="margin-top:0">Còpia de seguretat</label>
+  <div class="actions" style="margin-top:4px">
+    <button class="btn-ghost btn-sm" id="exportBackup">💾 Exportar backup (JSON)</button>
+    <button class="btn-ghost btn-sm" id="importBackupBtn">📂 Importar backup</button>
+    <input type="file" id="importBackupFile" accept="application/json,.json" style="display:none">
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="eval">Avaluar</div>
+  <div class="tab" data-tab="list">Alumnes i informes</div>
+</div>
+
+<div id="tab-eval">
+  <details class="card" id="configBox">
+    <summary>⚙️ Configura els punts de la rúbrica</summary>
+    <div class="inner" id="critConfig"></div>
+    <div class="inner actions">
+      <button class="btn-ghost btn-sm" id="addCrit">➕ Afegir punt</button>
+      <button class="btn-primary btn-sm" id="saveCrit">Desar punts</button>
+    </div>
+  </details>
+
+  <div class="card">
+    <div id="editingNote" style="display:none;color:var(--accent);font-size:12.5px;margin-bottom:6px;font-weight:600">Editant alumne existent</div>
+    <div class="row2">
+      <div><label>Nom</label><input type="text" id="fNom" placeholder="Nom"></div>
+      <div><label>Cognoms</label><input type="text" id="fCognoms" placeholder="Cognoms"></div>
+    </div>
+    <label>Nota (opcional)</label>
+    <input type="text" id="fNota" placeholder="p.ex. 7,5" style="max-width:140px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--fg);font-weight:400;margin-top:6px">
+      <input type="checkbox" id="fNotaPublica" checked style="width:auto"> Mostrar aquesta nota a l'informe de l'alumne
+    </label>
+    <div class="row2">
+      <div><label>Curs</label>
+        <select id="fCurs">
+          <option value="">-- Curs --</option>
+          <option value="1r">1r ESO</option>
+          <option value="2n">2n ESO</option>
+          <option value="3r">3r ESO</option>
+          <option value="4t">4t ESO</option>
+        </select>
+      </div>
+      <div><label>Grup</label>
+        <select id="fLletra">
+          <option value="">-- Grup --</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="D">D</option>
+        </select>
+      </div>
+    </div>
+    <label>Desdoblament (opcional)</label>
+    <div style="display:flex;gap:16px;margin:2px 0 4px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:13.5px;color:var(--fg);font-weight:400"><input type="radio" name="fSub" value="" checked> Cap</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:13.5px;color:var(--fg);font-weight:400"><input type="radio" name="fSub" value="A"> A</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:13.5px;color:var(--fg);font-weight:400"><input type="radio" name="fSub" value="B"> B</label>
+    </div>
+    <div id="critFields"></div>
+    <div class="actions">
+      <button class="btn-primary" id="saveStudent">Desar alumne</button>
+      <button class="btn-ghost" id="clearForm">Netejar formulari</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-list" style="display:none">
+  <div class="actions" style="margin-bottom:10px">
+    <select id="zipGroupSelect" style="width:auto"></select>
+    <button class="btn-ghost btn-sm" id="printView">🖨️ Vista d'impressió</button>
+    <button class="btn-ghost btn-sm" id="exportZip">📦 Exportar classe (ZIP)</button>
+    <button class="btn-ghost btn-sm" id="exportCsv">⬇️ Exportar CSV (tots)</button>
+  </div>
+  <div id="listArea"></div>
+  <div class="card" id="reportCard" style="display:none">
+    <div style="font-weight:700;margin-bottom:8px" id="reportTitle"></div>
+    <pre id="reportBox"></pre>
+    <div class="actions">
+      <button class="btn-ghost btn-sm" id="copyReport">Copiar</button>
+      <button class="btn-ghost btn-sm" id="downloadReport">Descarregar .txt</button>
+    </div>
+  </div>
+</div>
+</div>
+<div id="printArea"></div>
+
+<script>
+const LS_CRIT='rubrica_criteris', LS_STU='rubrica_alumnes', LS_TITOL='rubrica_titol';
+let editingId=null;
+
+function load(key,fallback){try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback}catch(e){return fallback}}
+function save(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch(e){}}
+
+let criteria = load(LS_CRIT, ['Punt 1']);
+let students = load(LS_STU, []);
+let titol = load(LS_TITOL, '');
+document.getElementById('fTitol').value=titol;
+document.getElementById('fTitol').addEventListener('change',()=>{
+  titol=document.getElementById('fTitol').value.trim();
+  save(LS_TITOL,titol);
+});
+function sanitizeFilename(s){return (s||'').replace(/[\\/:*?"<>|]+/g,'').trim()}
+function reportFilename(s){
+  const base=titol?`${titol} - ${fullName(s)}`:fullName(s);
+  return sanitizeFilename(base)+'.txt';
+}
+
+function syncCritFromInputs(){
+  document.querySelectorAll('.critLabelInput').forEach(inp=>{
+    criteria[+inp.dataset.i]=inp.value.trim()||('Punt '+(+inp.dataset.i+1));
+  });
+}
+
+function renderCritConfig(){
+  document.getElementById('critConfig').innerHTML = criteria.map((c,i)=>
+    `<div style="display:flex;gap:6px;align-items:flex-end">
+      <div style="flex:1"><label>Punt ${i+1}</label><input type="text" class="critLabelInput" data-i="${i}" value="${escapeAttr(c)}"></div>
+      ${criteria.length>1?`<button class="btn-danger btn-sm" onclick="removeCrit(${i})" style="margin-bottom:1px">✕</button>`:''}
+    </div>`
+  ).join('');
+}
+function addCrit(){
+  syncCritFromInputs();
+  criteria.push('Punt '+(criteria.length+1));
+  renderCritConfig();
+}
+function removeCrit(i){
+  if(criteria.length<=1){alert('Cal mantenir com a mínim un punt.');return}
+  syncCritFromInputs();
+  criteria.splice(i,1);
+  renderCritConfig();
+}
+document.getElementById('addCrit').onclick=addCrit;
+function buildGrupString(){
+  const curs=document.getElementById('fCurs').value;
+  const lletra=document.getElementById('fLletra').value;
+  const sub=(document.querySelector('input[name="fSub"]:checked')||{}).value||'';
+  if(!curs||!lletra) return '';
+  return `${curs} ESO ${lletra}` + (sub?` / ${sub}`:'');
+}
+function parseGrupString(g){
+  const m=/^(\S+)\s*ESO\s*([A-D])(?:\s*\/\s*(A|B))?$/i.exec((g||'').trim());
+  return m?{curs:m[1],lletra:m[2].toUpperCase(),sub:(m[3]||'').toUpperCase()}:{curs:'',lletra:'',sub:''};
+}
+function setGrupSelectors(g){
+  const p=parseGrupString(g);
+  document.getElementById('fCurs').value=p.curs;
+  document.getElementById('fLletra').value=p.lletra;
+  const radio=document.querySelector(`input[name="fSub"][value="${p.sub}"]`);
+  if(radio) radio.checked=true; else document.querySelector('input[name="fSub"][value=""]').checked=true;
+}
+function escapeAttr(s){return (s||'').replace(/"/g,'&quot;')}
+function escapeHtml(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function fullName(s){return s.cognoms?`${s.nom||''} ${s.cognoms}`.trim():(s.nom||'')}
+function listName(s){return s.cognoms?`${s.cognoms}, ${s.nom||''}`.trim():(s.nom||'')}
+function sortKey(s){return (s.cognoms||s.nom||'').toLowerCase()}
+
+function renderCritFields(){
+  document.getElementById('critFields').innerHTML = criteria.map((c,i)=>`
+    <div class="crit">
+      <div class="name">${i+1}. ${escapeHtml(c)}</div>
+      <div class="row2">
+        <div><label>✎ A millorar</label><textarea data-mill="${i}" placeholder="Què pot millorar..."></textarea></div>
+        <div><label>✔ Positiu</label><textarea data-pos="${i}" placeholder="Què fa bé..."></textarea></div>
+      </div>
+    </div>`).join('');
+}
+
+document.getElementById('saveCrit').onclick=()=>{
+  syncCritFromInputs();
+  save(LS_CRIT,criteria);
+  renderCritConfig();
+  renderCritFields();
+  document.getElementById('configBox').removeAttribute('open');
+};
+
+function clearForm(){
+  editingId=null;
+  document.getElementById('editingNote').style.display='none';
+  document.getElementById('fNom').value='';
+  document.getElementById('fCognoms').value='';
+  document.getElementById('fNota').value='';
+  document.getElementById('fNotaPublica').checked=true;
+  document.getElementById('fCurs').value='';
+  document.getElementById('fLletra').value='';
+  document.querySelector('input[name="fSub"][value=""]').checked=true;
+  renderCritFields();
+}
+document.getElementById('clearForm').onclick=clearForm;
+
+function resetForNextStudent(){
+  editingId=null;
+  document.getElementById('editingNote').style.display='none';
+  document.getElementById('fNom').value='';
+  document.getElementById('fCognoms').value='';
+  document.getElementById('fNom').focus();
+}
+
+document.getElementById('saveStudent').onclick=()=>{
+  const nom=document.getElementById('fNom').value.trim();
+  const cognoms=document.getElementById('fCognoms').value.trim();
+  const grup=buildGrupString();
+  if(!nom || !cognoms){alert("Cal el nom i els cognoms de l'alumne");return}
+  const nota=document.getElementById('fNota').value.trim();
+  const notaPublica=document.getElementById('fNotaPublica').checked;
+  const comments=criteria.map((c,i)=>({
+    pos:(document.querySelector(`[data-pos="${i}"]`)||{}).value?.trim()||'',
+    mill:(document.querySelector(`[data-mill="${i}"]`)||{}).value?.trim()||''
+  }));
+  if(editingId){
+    const s=students.find(s=>s.id===editingId);
+    Object.assign(s,{nom,cognoms,grup,nota,notaPublica,comments});
+  }else{
+    students.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),nom,cognoms,grup,nota,notaPublica,comments});
+  }
+  save(LS_STU,students);
+  resetForNextStudent();
+  renderList();
+  switchTab('eval');
+  alert('Alumne desat.');
+};
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===t));
+  document.getElementById('tab-eval').style.display = t==='eval'?'block':'none';
+  document.getElementById('tab-list').style.display = t==='list'?'block':'none';
+  if(t==='list') renderList();
+}
+document.querySelectorAll('.tab').forEach(el=>el.onclick=()=>switchTab(el.dataset.tab));
+
+function editStudent(id){
+  const s=students.find(s=>s.id===id); if(!s)return;
+  editingId=id;
+  document.getElementById('editingNote').style.display='block';
+  document.getElementById('fNom').value=s.nom||'';
+  document.getElementById('fCognoms').value=s.cognoms||'';
+  setGrupSelectors(s.grup);
+  document.getElementById('fNota').value=s.nota||'';
+  document.getElementById('fNotaPublica').checked=(s.notaPublica!==false);
+  renderCritFields();
+  (s.comments||[]).forEach((c,i)=>{
+    const p=document.querySelector(`[data-pos="${i}"]`), m=document.querySelector(`[data-mill="${i}"]`);
+    if(p)p.value=c.pos; if(m)m.value=c.mill;
+  });
+  switchTab('eval');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteStudent(id){
+  if(!confirm('Esborrar aquest alumne?'))return;
+  students=students.filter(s=>s.id!==id);
+  save(LS_STU,students);
+  renderList();
+}
+
+function renderList(){
+  const area=document.getElementById('listArea');
+  const sel=document.getElementById('zipGroupSelect');
+  const prevSel=sel.value;
+  if(students.length===0){
+    area.innerHTML='<div class="empty">Encara no hi ha alumnes desats.</div>';
+    sel.innerHTML='<option value="">-- Cap grup --</option>';
+    return;
+  }
+  const groups={};
+  students.forEach(s=>{const g=s.grup||'(Sense grup)'; (groups[g]=groups[g]||[]).push(s)});
+  const groupNames=Object.keys(groups).sort();
+  sel.innerHTML='<option value="__ALL__">Tots els alumnes</option>'+groupNames.map(g=>`<option value="${escapeAttr(g)}">${escapeHtml(g)}</option>`).join('');
+  if(groupNames.includes(prevSel)||prevSel==='__ALL__') sel.value=prevSel;
+  let html='';
+  groupNames.forEach(g=>{
+    html+=`<div class="grupTitle">${escapeHtml(g)} (${groups[g].length})</div><div class="tablewrap"><table><tr><th>Nom</th><th>Nota</th><th></th></tr>`;
+    groups[g].sort((a,b)=>sortKey(a).localeCompare(sortKey(b))).forEach(s=>{
+      html+=`<tr><td>${escapeHtml(listName(s))}</td><td>${escapeHtml(s.nota||'-')}${s.nota&&s.notaPublica===false?' 🔒':''}</td>
+      <td class="rowbtns">
+        <button class="btn-ghost btn-sm" onclick="showReport('${s.id}')">Informe</button>
+        <button class="btn-ghost btn-sm" onclick="editStudent('${s.id}')">Editar</button>
+        <button class="btn-danger btn-sm" onclick="deleteStudent('${s.id}')">Esborrar</button>
+      </td></tr>`;
+    });
+    html+='</table></div>';
+  });
+  area.innerHTML=html;
+}
+
+function indentContinuation(text, prefix){
+  const pad=' '.repeat(prefix.length);
+  return (text||'').split('\n').map((line,i)=>i===0?line:pad+line).join('\n');
+}
+
+function buildReportText(s){
+  const notaLine=(s.nota && s.notaPublica!==false)?('Nota: '+s.nota+'\n'):'';
+  const titolLine=titol?(`Avaluació: ${titol}\n`):'';
+  let t=`INFORME D'AVALUACIÓ\n${titolLine}Alumne: ${fullName(s)}\nGrup: ${s.grup||'-'}\n${notaLine}\n`;
+  criteria.forEach((c,i)=>{
+    const cm=(s.comments&&s.comments[i])||{pos:'',mill:''};
+    t+=`${i+1}. ${c}\n`;
+    if(cm.pos){const p='   ✔ Positiu: ';t+=p+indentContinuation(cm.pos,p)+'\n';}
+    if(cm.mill){const p='   ✎ A millorar: ';t+=p+indentContinuation(cm.mill,p)+'\n';}
+    if(!cm.pos && !cm.mill) t+=`   (sense comentaris)\n`;
+    t+='\n';
+  });
+  return t;
+}
+let currentReportStudent=null;
+function showReport(id){
+  const s=students.find(s=>s.id===id); if(!s)return;
+  currentReportStudent=s;
+  document.getElementById('reportTitle').textContent=fullName(s)+' — '+(s.grup||'');
+  document.getElementById('reportBox').textContent=buildReportText(s);
+  document.getElementById('reportCard').style.display='block';
+  document.getElementById('reportCard').scrollIntoView({behavior:'smooth'});
+}
+document.getElementById('copyReport').onclick=()=>{
+  navigator.clipboard?.writeText(document.getElementById('reportBox').textContent).then(()=>alert('Copiat!'));
+};
+document.getElementById('downloadReport').onclick=()=>{
+  if(!currentReportStudent)return;
+  downloadBlob(buildReportText(currentReportStudent), reportFilename(currentReportStudent),'text/plain');
+};
+
+function downloadBlob(content,filename,type){
+  const blob=new Blob([content],{type});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function buildReportHTMLBlock(s){
+  const notaLine=(s.nota && s.notaPublica!==false)?`<div class="printNota">Nota: ${escapeHtml(s.nota)}</div>`:'';
+  const titolPrefix=titol?escapeHtml(titol)+' — ':'';
+  let critsHtml='';
+  criteria.forEach((c,i)=>{
+    const cm=(s.comments&&s.comments[i])||{pos:'',mill:''};
+    critsHtml+=`<div class="printCritTitle">${i+1}. ${escapeHtml(c)}</div>`;
+    if(cm.pos) critsHtml+=`<div class="printPos">✔ ${escapeHtml(cm.pos)}</div>`;
+    if(cm.mill) critsHtml+=`<div class="printMill">✎ ${escapeHtml(cm.mill)}</div>`;
+    if(!cm.pos && !cm.mill) critsHtml+=`<div class="printNone">(sense comentaris)</div>`;
+  });
+  return `<div class="printReport"><div class="printHead">${titolPrefix}${escapeHtml(fullName(s))} · ${escapeHtml(s.grup||'')}</div>${notaLine}${critsHtml}</div>`;
+}
+
+document.getElementById('printView').onclick=()=>{
+  const sel=document.getElementById('zipGroupSelect').value;
+  if(!sel){alert('No hi ha cap grup per imprimir.');return}
+  const targets = sel==='__ALL__' ? students : students.filter(s=>(s.grup||'(Sense grup)')===sel);
+  if(targets.length===0){alert('No hi ha alumnes en aquest grup.');return}
+  const sorted=targets.slice().sort((a,b)=>sortKey(a).localeCompare(sortKey(b)));
+  document.getElementById('printArea').innerHTML=sorted.map(buildReportHTMLBlock).join('');
+  window.print();
+};
+
+document.getElementById('exportZip').onclick=async()=>{
+  const sel=document.getElementById('zipGroupSelect').value;
+  if(!sel){alert('No hi ha cap grup per exportar.');return}
+  const targets = sel==='__ALL__' ? students : students.filter(s=>(s.grup||'(Sense grup)')===sel);
+  if(targets.length===0){alert('No hi ha alumnes en aquest grup.');return}
+  if(typeof JSZip==='undefined'){alert('No s\'ha pogut carregar la llibreria ZIP. Comprova la connexió i torna-ho a provar.');return}
+  const zip=new JSZip();
+  const used={};
+  targets.forEach(s=>{
+    let name=reportFilename(s);
+    if(used[name]){used[name]++; name=name.replace(/\.txt$/,'')+' ('+used[name]+').txt';}
+    else used[name]=1;
+    zip.file(name, buildReportText(s));
+  });
+  const blob=await zip.generateAsync({type:'blob'});
+  const zipName=sanitizeFilename((titol?titol+' - ':'')+(sel==='__ALL__'?'Tots':sel))+'.zip';
+  downloadBlob(blob, zipName, 'application/zip');
+};
+
+document.getElementById('exportCsv').onclick=()=>{
+  if(students.length===0){alert('No hi ha alumnes per exportar.');return}
+  const headers=['Nom','Cognoms','Grup','Nota','Nota pública'];
+  criteria.forEach((c,i)=>{headers.push(`P${i+1} Positiu`,`P${i+1} Millora`)});
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  let csv=headers.map(esc).join(',')+'\n';
+  students.slice().sort((a,b)=>(a.grup||'').localeCompare(b.grup||'')||sortKey(a).localeCompare(sortKey(b))).forEach(s=>{
+    const row=[s.nom,s.cognoms,s.grup,s.nota,(s.notaPublica!==false?'Sí':'No')];
+    criteria.forEach((c,i)=>{const cm=(s.comments&&s.comments[i])||{pos:'',mill:''};row.push(cm.pos,cm.mill)});
+    csv+=row.map(esc).join(',')+'\n';
+  });
+  downloadBlob(csv,'avaluacions.csv','text/csv');
+};
+
+renderCritConfig();
+renderCritFields();
+renderList();
+
+document.getElementById('exportBackup').onclick=()=>{
+  const backup={criteria,titol,students,exportedAt:new Date().toISOString()};
+  downloadBlob(JSON.stringify(backup,null,2), sanitizeFilename((titol?titol+' - ':'')+'backup')+'.json','application/json');
+};
+document.getElementById('importBackupBtn').onclick=()=>document.getElementById('importBackupFile').click();
+document.getElementById('importBackupFile').addEventListener('change',(e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data.students)||!Array.isArray(data.criteria)){alert("El fitxer no té el format esperat.");return}
+      if(!confirm("Això substituirà totes les dades actuals (criteris, alumnes i títol) per les del fitxer. Vols continuar?"))return;
+      criteria=data.criteria.length?data.criteria:['Punt 1'];
+      students=data.students;
+      titol=data.titol||'';
+      save(LS_CRIT,criteria); save(LS_STU,students); save(LS_TITOL,titol);
+      document.getElementById('fTitol').value=titol;
+      renderCritConfig(); renderCritFields(); renderList();
+      alert("Dades importades correctament.");
+    }catch(err){alert("No s'ha pogut llegir el fitxer JSON.");}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+
+</script>
+</body>
+</html>
